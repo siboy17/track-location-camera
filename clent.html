@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Location and Camera Access</title>
+</head>
+<body>
+  <h1>Capture Image and Location</h1>
+  <p id="errorMessage"></p>
+  <p id="locationData"></p>
+  <button id="captureBtn">Capture, Get Location, and Send</button>
+
+  <!-- Elemen video tidak ditampilkan -->
+  <video id="videoElement" width="640" height="480" autoplay style="display:none;"></video>
+  <canvas id="canvasElement" width="640" height="480" style="display:none;"></canvas>
+
+  <script>
+    let latitude, longitude;
+
+    // Memulai akses kamera tanpa menampilkan video di halaman
+    function startCamera() {
+      const videoElement = document.getElementById('videoElement');
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(function(stream) {
+            videoElement.srcObject = stream;
+          })
+          .catch(function(error) {
+            document.getElementById('errorMessage').textContent = "Error: " + error.message;
+          });
+      } else {
+        document.getElementById('errorMessage').textContent = "Camera access is not supported by this browser.";
+      }
+    }
+
+    // Meminta akses lokasi
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+          document.getElementById('locationData').textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+        }, function(error) {
+          document.getElementById('errorMessage').textContent = "Error getting location: " + error.message;
+        });
+      } else {
+        document.getElementById('errorMessage').textContent = "Geolocation is not supported by this browser.";
+      }
+    }
+
+    // Menangkap gambar dari kamera dan mengirimkan ke server
+    function captureAndSend() {
+      const videoElement = document.getElementById('videoElement');
+      const canvasElement = document.getElementById('canvasElement');
+      const context = canvasElement.getContext('2d');
+
+      // Gambar frame video ke canvas
+      context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      const imageData = canvasElement.toDataURL('image/png');
+
+      // Kirim data ke server
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'http://localhost:3000/upload', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      const data = JSON.stringify({
+        image: imageData,
+        latitude: latitude,
+        longitude: longitude
+      });
+
+      xhr.send(data);
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          alert('Image and location sent successfully!');
+        } else {
+          alert('Failed to send data: ' + xhr.statusText);
+        }
+      };
+    }
+
+    window.onload = function() {
+      startCamera();  // Mulai akses kamera saat halaman dimuat
+      getLocation();  // Mulai akses lokasi
+    };
+
+    document.getElementById('captureBtn').addEventListener('click', captureAndSend);
+  </script>
+</body>
+</html>
